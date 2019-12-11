@@ -44,7 +44,7 @@ class VariationalDropoutfce(_Linear):
             return F.linear(input, self.weight, self.bias)
         else:
             if self.deterministic_limit == True:
-                log_alpha = torch.clamp(self.log_alpha.data, -8., 0)
+                log_alpha = torch.clamp(self.log_alpha, -8., 8.)
             else:
                 log_alpha = self.log_alpha
             if self.dropout_type == 'B':
@@ -100,7 +100,7 @@ class VariationalDropoutcnne(_ConvNd):
                             self.padding, self.dilation, self.groups)
         else:
             if self.deterministic_limit == True:
-                log_alpha = torch.clamp(self.log_alpha.data, -8., 0)
+                log_alpha = torch.clamp(self.log_alpha, -8., 8.)
             else:
                 log_alpha = self.log_alpha
             if self.dropout_type == 'B':

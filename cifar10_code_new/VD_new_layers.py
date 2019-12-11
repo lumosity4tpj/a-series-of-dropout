@@ -16,15 +16,17 @@ from torch.nn.modules.linear import Linear as _Linear
 
 @weak_module
 class VariationalDropout(nn.Module):
-    def __init__(self, in_features, p=0.5, deterministic_test=False, deterministic_limit=True, eps=1e-8, fc=False):
+    def __init__(self, in_features, p=0.5, deterministic_test=False, deterministic_limit=True, deterministic_sparse=False, eps=1e-8, fc=False):
         super(VariationalDropout, self).__init__()
         self.deterministic_test = deterministic_test
         self.eps = eps        
         self.deterministic_limit = deterministic_limit
+        self.deterministic_sparse = deterministic_sparse
         self.fc = fc
         log_alpha = torch.Tensor(in_features).fill_(np.log(p/(1. - p)))
 
         self.log_alpha = nn.Parameter(log_alpha)
+        self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
 
     def kl(self):
@@ -32,13 +34,18 @@ class VariationalDropout(nn.Module):
             c1, c2, c3 = 1.16145124, -1.50204118, 0.58629921
             C = -(c1+c2+c3)
             if self.deterministic_limit == True:
-                log_alpha = torch.clamp(self.log_alpha.data, -8., 0)
+                log_alpha = torch.clamp(self.log_alpha, -8., 0)
             else:
                 log_alpha = self.log_alpha
             alpha = log_alpha.exp()
             return -torch.sum(0.5 * torch.log(alpha) + c1 * alpha + c2 * (alpha**2) + c3 * (alpha**3) + C)
         else:
-            return -torch.sum(-0.5*self.softplus(-self.log_alpha))
+            if self.deterministic_sparse == True:
+                k1, k2, k3 = 0.63576, 1.8732, 1.48695
+                return -torch.sum(k1 * self.sigmoid(k2 + k3 * self.log_alpha) - 0.5 * self.softplus(-self.log_alpha) - k1)
+
+            else:
+                return -torch.sum(-0.5*self.softplus(-self.log_alpha))
 
     @weak_script_method
     def forward(self,input):
@@ -47,7 +54,7 @@ class VariationalDropout(nn.Module):
             return input
         else:
             if self.deterministic_limit == True:
-                log_alpha = torch.clamp(self.log_alpha.data, -8., 0)
+                log_alpha = torch.clamp(self.log_alpha, -8., 0) ############Todo:好像截断了，导致梯度不能传递？
             else:
                 log_alpha = self.log_alpha
             if self.fc == True:

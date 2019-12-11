@@ -15,7 +15,8 @@ from tqdm import tqdm
 # from tensorboardX import SummaryWriter
 from utils import weights_init
 from VD_new_layers import VariationalDropout
-from models_new import NETGaussianDropoutSrivastava,NETGaussianDropoutWang,NETVariationalDropoutA,NETVariationalDropoutB,EffectNETVariationalDropoutA,EffectNETVariationalDropoutB
+from models_new import NETGaussianDropoutSrivastava,NETGaussianDropoutWang,NETVariationalDropoutA,NETVariationalDropoutB,EffectNETVariationalDropoutA,EffectNETVariationalDropoutB,\
+    EffectSparseNETVariationalDropoutA,EffectSparseNETVariationalDropoutB
 
 class CNN(object):
     def __init__(self,device,ngpu,data_dir,img_size,batch_size,dropout_type,scale,seed):
@@ -28,14 +29,13 @@ class CNN(object):
         self.seed = seed
 
     def train(self,epochs,env,lr,save_pth,net_pth=' '):
-        # vis = visdom.Visdom(env=env)
-        # assert vis.check_connection()
-        # train_loss_win = vis.line(np.arange(10))
-        # test_loss_win = vis.line(np.arange(10))
-        # train_acc_win = vis.line(np.arange(10))
-        # test_acc_win = vis.line(np.arange(10))
-        # lr_win = vis.line(np.arange(10))
-        # alpha_win = vis.line(X=np.column_stack((np.array(0),np.array(0))),Y=np.column_stack((np.array(0),np.array(0))))
+        vis = visdom.Visdom(env=env)
+        assert vis.check_connection()
+        train_loss_win = vis.line(np.arange(10))
+        test_loss_win = vis.line(np.arange(10))
+        train_acc_win = vis.line(np.arange(10))
+        test_acc_win = vis.line(np.arange(10))
+        alpha_win = vis.line(X=np.column_stack((np.array(0),np.array(0))),Y=np.column_stack((np.array(0),np.array(0))))
         iter_count = 0
         model = self.load_model(net_pth)
         
@@ -87,19 +87,20 @@ class CNN(object):
                         assert label.size(0) == y.size(0)
                         loss = criterion(y,label)
                         kl = 0
-                        if self.dropout_type == 'NETVariationalDropoutA' or 'NETVariationalDropoutB' or 'EffectNETVariationalDropoutA' or 'EffectNETVariationalDropoutB':
+                        if self.dropout_type in ['NETVariationalDropoutA','NETVariationalDropoutB','EffectNETVariationalDropoutA','EffectNETVariationalDropoutB',\
+                            'EffectSparseNETVariationalDropoutA','EffectSparseNETVariationalDropoutB']:
                             for name, module in model.named_modules():
                                 if isinstance(module,VariationalDropout):
                                     kl += module.kl()
-                            # if phase == 'train':
-                            #     m = []
-                            #     for i in model.named_parameters():
-                            #         if i[0].split('.')[-1] == 'alpha':
-                            #             t = torch.mean(i[1])
-                            #             m.append(t)
-                            #     alpha_list.append(m)
+                            if phase == 'train' and (i+1)%50==0:
+                                m = []
+                                for i in model.named_parameters():
+                                    if i[0].split('.')[-1] == 'log_alpha':
+                                        t = torch.mean(i[1])
+                                        m.append(t)
+                                alpha_list.append(m)
                         else:
-                            assert self.dropout_type == 'NETNoDropout' or 'NETBernoulliDropout' or 'NETGaussianDropoutWang' or 'NETGaussianDropoutSrivastava','dropout type error'
+                            assert self.dropout_type in ['NETNoDropout','NETBernoulliDropout','NETGaussianDropoutWang','NETGaussianDropoutSrivastava'],'dropout type error'
                         loss = loss + kl/50000
 
                         if phase == 'train':
@@ -109,6 +110,7 @@ class CNN(object):
                     running_loss += loss.item()*batch_size
                     running_correct += (preds==label).sum()
                 
+                print('kl:',kl)
                 epoch_loss = running_loss/datasize[phase]
                 epoch_correct = running_correct.double()/datasize[phase]
                 epoch_t = time.time() - epoch_start_t
@@ -118,30 +120,36 @@ class CNN(object):
                     if phase == 'train':
                         if epoch_correct >= best_train_epoch_correct:
                             best_train_epoch_correct = epoch_correct
-                        # vis.line(Y=np.array([epoch_loss]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=train_loss_win,
-                        #         opts=dict(legend=['train_loss']))
-                        # vis.line(Y=np.array([epoch_correct.item()]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=train_acc_win,
-                        #         opts=dict(legend=['train_acc']))
+                        vis.line(Y=np.array([epoch_loss]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=train_loss_win,
+                                opts=dict(legend=['train_loss']))
+                        vis.line(Y=np.array([epoch_correct.item()]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=train_acc_win,
+                                opts=dict(legend=['train_acc']))
                         print('train_best_epoch_correct:',best_train_epoch_correct.item())
+                        if self.dropout_type in ['NETVariationalDropoutA','NETVariationalDropoutB','EffectNETVariationalDropoutA','EffectNETVariationalDropoutB',\
+                            'EffectSparseNETVariationalDropoutA','EffectSparseNETVariationalDropoutB']:
+                            vis.line(Y=np.column_stack((np.array([m[0].item()]), np.array([m[-1].item()]))),
+                                    X=np.column_stack((np.array([iter_count]), np.array([iter_count]))),
+                                    win=alpha_win, update='append',
+                                    opts=dict(legned=['log_alpha1', 'log_alpha2']))
                     else:
                         if epoch_correct >= best_test_epoch_correct:
                             best_test_epoch_correct = epoch_correct
-                        # vis.line(Y=np.array([epoch_loss]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=test_loss_win,
-                        #         opts=dict(legend=['test_loss']))
-                        # vis.line(Y=np.array([epoch_correct.item()]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=test_acc_win,
-                        #         opts=dict(legend=['test_acc']))
+                        vis.line(Y=np.array([epoch_loss]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=test_loss_win,
+                                opts=dict(legend=['test_loss']))
+                        vis.line(Y=np.array([epoch_correct.item()]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=test_acc_win,
+                                opts=dict(legend=['test_acc']))
                         print('val_best_epoch_correct:',best_test_epoch_correct.item())
                         iter_count += 1
 
@@ -172,6 +180,10 @@ class CNN(object):
             net = EffectNETVariationalDropoutA(scale=self.scale)
         elif self.dropout_type == 'EffectNETVariationalDropoutB':
             net = EffectNETVariationalDropoutB(scale=self.scale)
+        elif self.dropout_type == 'EffectSparseNETVariationalDropoutA':
+            net = EffectSparseNETVariationalDropoutA(scale=self.scale)
+        elif self.dropout_type == 'EffectSparseNETVariationalDropoutB':
+            net = EffectSparseNETVariationalDropoutB(scale=self.scale)
         else:
             print('please check your dropout type')
         if net_pth != ' ':

@@ -21,25 +21,31 @@ class VariationalDropoutHierarchicalfc(_Linear):
         self.deterministic_compress = deterministic_compress
         self.threshold = threshold
         self.eps = eps
-        # log_alpha = torch.Tensor(in_features,out_features).fill_(np.log(1.))
-        log_alpha = torch.Tensor(out_features).fill_(np.log(1.))
-        self.log_alpha = nn.Parameter(log_alpha)
+        log_sigma2 = torch.Tensor(in_features,out_features).fill_(-10.)
+        self.log_sigma2 = nn.Parameter(log_sigma2)
         self.softplus = nn.Softplus()
+
+    @staticmethod
+    def compute_log_alpha(log_sigma2, theta, eps=1e-8, value_limit=8.):
+        log_alpha = log_sigma2 - torch.log(theta**2 + eps)
+        if value_limit is not None:
+            # If a limit is specified, clip the alpha values
+            return torch.clamp(log_alpha, -value_limit, value_limit)
 
     @staticmethod
     def compute_log_sigma2(log_alpha, theta, eps=1e-8):
         return log_alpha + torch.log(theta**2 + eps)
 
     def get_log_alpha(self):
-        return self.log_alpha
+        return self.compute_log_alpha(self.log_sigma2,self.weight.t())
 
     def kl(self):
-        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
+        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.t())
         return -torch.sum(-0.5*self.softplus(-log_alpha))
 
     @weak_script_method
     def forward(self,input):
-        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
+        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.t())
         if self.deterministic_test:
             assert self.training == False,"Flag deterministic is True. This should not be used in training."
             if self.deterministic_compress:
@@ -50,11 +56,10 @@ class VariationalDropoutHierarchicalfc(_Linear):
             else:
                 return F.linear(input, self.weight, self.bias)
         else:
-            # log_sigma2 = self.compute_log_sigma2(log_alpha,self.weight.t())
+            log_sigma2 = self.compute_log_sigma2(log_alpha,self.weight.t())
             mu = F.linear(input, self.weight, self.bias)
-            # weight = log_sigma2.exp().t()
-            # si = torch.sqrt(F.linear(input**2, weight, None) + self.eps)
-            si = mu * torch.sqrt(log_alpha.exp() + self.eps)
+            weight = log_sigma2.exp().t()
+            si = torch.sqrt(F.linear(input**2, weight, None) + self.eps)
             eps = torch.randn(*mu.size()).to(input.device)
             assert si.shape == eps.shape
             return mu + eps*si
@@ -75,25 +80,31 @@ class VariationalDropoutHierarchicalcnn(_ConvNd):
         self.deterministic_compress = deterministic_compress
         self.threshold = threshold
         self.eps = eps        
-        # log_alpha = torch.Tensor(in_channels,out_channels,*kernel_size).fill_(np.log(1.))
-        log_alpha = torch.Tensor(out_channels).fill_(np.log(1.))
-        self.log_alpha = nn.Parameter(log_alpha)
+        log_sigma2 = torch.Tensor(in_channels,out_channels,*kernel_size).fill_(-10.)
+        self.log_sigma2 = nn.Parameter(log_sigma2)
         self.softplus = nn.Softplus()
+
+    @staticmethod
+    def compute_log_alpha(log_sigma2, theta, eps=1e-8, value_limit=8.):
+        log_alpha = log_sigma2 - torch.log(theta**2 + eps)
+        if value_limit is not None:
+            # If a limit is specified, clip the alpha values
+            return torch.clamp(log_alpha, -value_limit, value_limit)
 
     @staticmethod
     def compute_log_sigma2(log_alpha, theta, eps=1e-8):
         return log_alpha + torch.log(theta**2 + eps)
 
     def get_log_alpha(self):
-        return self.log_alpha
+        return self.compute_log_alpha(self.log_sigma2,self.weight.permute(1,0,2,3).contiguous())
     
     def kl(self):
-        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
+        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.permute(1,0,2,3).contiguous())
         return -torch.sum(-0.5*self.softplus(-log_alpha))
 
     @weak_script_method
     def forward(self,input):
-        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
+        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.permute(1,0,2,3).contiguous())
         if self.deterministic_test:
             assert self.training == False,"Flag deterministic is True. This should not be used in training."
             if self.deterministic_compress:
@@ -108,11 +119,10 @@ class VariationalDropoutHierarchicalcnn(_ConvNd):
         else:
             mu = F.conv2d(input, self.weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
-            # log_sigma2 = self.compute_log_sigma2(log_alpha,self.weight.permute(1,0,2,3).contiguous())
-            # weight = log_sigma2.exp().permute(1,0,2,3).contiguous()
-            # si = torch.sqrt(F.conv2d(input**2, weight, None, self.stride,
-                        # self.padding, self.dilation, self.groups) + self.eps)
-            si = mu*torch.sqrt(log_alpha.exp().unsqueeze(-1).unsqueeze(-1) + self.eps)
+            log_sigma2 = self.compute_log_sigma2(log_alpha,self.weight.permute(1,0,2,3).contiguous())
+            weight = log_sigma2.exp().permute(1,0,2,3).contiguous()
+            si = torch.sqrt(F.conv2d(input**2, weight, None, self.stride,
+                        self.padding, self.dilation, self.groups) + self.eps)
             eps = torch.randn(*mu.size()).to(input.device)
             assert si.shape == eps.shape
             return mu + eps*si

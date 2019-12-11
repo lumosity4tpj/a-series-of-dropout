@@ -54,6 +54,7 @@ class NETGaussianDropoutSrivastava(nn.Module):
             GaussianDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),fc=False),
         )
         self.fc = nn.Sequential(
+            # GaussianDropout(int(64*scale)*7*7,p=0.5,deterministic_test=(self.training!=True),fc=True),
             nn.Linear(int(64*scale)*7*7,int(128*scale)),
             GaussianDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),fc=True),
             nn.Linear(int(128*scale),int(128*scale)),
@@ -75,19 +76,20 @@ class NETVariationalDropoutA(nn.Module):
         self.scale = scale
 
         self.cnn = nn.Sequential(
-            VariationalDropout(3,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=False),
+            VariationalDropout(3,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=False),
             nn.Conv2d(3,int(32*scale),kernel_size=3,stride=2),
             nn.Softplus(),
-            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=False),
+            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=False),
             nn.Conv2d(int(32*scale),int(64*scale),kernel_size=3,stride=2),
             nn.Softplus(),
-            VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=False),
+            # VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=False),
         )
         self.fc = nn.Sequential(
+            VariationalDropout(int(64*scale)*7*7,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=True),
             nn.Linear(int(64*scale)*7*7,int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=True),
             nn.Linear(int(128*scale),int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=True),
             nn.Linear(int(128*scale),10),
             # nn.Softmax(),
         )
@@ -104,19 +106,50 @@ class EffectNETVariationalDropoutA(nn.Module):
         self.scale = scale
 
         self.cnn = nn.Sequential(
-            VariationalDropout(3,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=False),
+            VariationalDropout(3,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=False),
             nn.Conv2d(3,int(32*scale),kernel_size=3,stride=2),
             nn.Softplus(),
-            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=False),
+            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=False),
             nn.Conv2d(int(32*scale),int(64*scale),kernel_size=3,stride=2),
             nn.Softplus(),
-            VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=False),
+            # VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=False),
         )
         self.fc = nn.Sequential(
+            VariationalDropout(int(64*scale)*7*7,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=True),
             nn.Linear(int(64*scale)*7*7,int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=True),
             nn.Linear(int(128*scale),int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=True),
+            nn.Linear(int(128*scale),10),
+            # nn.Softmax(),
+        )
+
+    def forward(self,x):
+        x1 = self.cnn(x)
+        x2 = x1.view(-1,int(64*self.scale)*7*7)
+        y = self.fc(x2)
+        return y
+
+class EffectSparseNETVariationalDropoutA(nn.Module):
+    def __init__(self,scale=1.0):
+        super(EffectSparseNETVariationalDropoutA,self).__init__()
+        self.scale = scale
+
+        self.cnn = nn.Sequential(
+            VariationalDropout(3,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=False),
+            nn.Conv2d(3,int(32*scale),kernel_size=3,stride=2),
+            nn.Softplus(),
+            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=False),
+            nn.Conv2d(int(32*scale),int(64*scale),kernel_size=3,stride=2),
+            nn.Softplus(),
+            # VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=False),
+        )
+        self.fc = nn.Sequential(
+            VariationalDropout(int(64*scale)*7*7,p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=True),
+            nn.Linear(int(64*scale)*7*7,int(128*scale)),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=True),
+            nn.Linear(int(128*scale),int(128*scale)),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=True),
             nn.Linear(int(128*scale),10),
             # nn.Softmax(),
         )
@@ -135,17 +168,17 @@ class NETVariationalDropoutB(nn.Module):
 
         self.cnn = nn.Sequential(
             nn.Conv2d(3,int(32*scale),kernel_size=3,stride=2),
-            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=False),
+            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=False),
             nn.Softplus(),
             nn.Conv2d(int(32*scale),int(64*scale),kernel_size=3,stride=2),
-            VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=False),
+            VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=False),
             nn.Softplus(),
         )
         self.fc = nn.Sequential(
             nn.Linear(int(64*scale)*7*7,int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=True),
             nn.Linear(int(128*scale),int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=True,deterministic_sparse=False,fc=True),
             nn.Linear(int(128*scale),10),
             # nn.Softmax(),
         )
@@ -163,17 +196,45 @@ class EffectNETVariationalDropoutB(nn.Module):
 
         self.cnn = nn.Sequential(
             nn.Conv2d(3,int(32*scale),kernel_size=3,stride=2),
-            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=False),
+            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=False),
             nn.Softplus(),
             nn.Conv2d(int(32*scale),int(64*scale),kernel_size=3,stride=2),
-            VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=False),
+            VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=False),
             nn.Softplus(),
         )
         self.fc = nn.Sequential(
             nn.Linear(int(64*scale)*7*7,int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=True),
             nn.Linear(int(128*scale),int(128*scale)),
-            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,fc=True),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=False,fc=True),
+            nn.Linear(int(128*scale),10),
+            # nn.Softmax(),
+        )
+
+    def forward(self,x):
+        x1 = self.cnn(x)
+        x2 = x1.view(-1,int(64*self.scale)*7*7)
+        y = self.fc(x2)
+        return y
+
+class EffectSparseNETVariationalDropoutB(nn.Module):
+    def __init__(self,scale=1.0):
+        super(EffectSparseNETVariationalDropoutB,self).__init__()
+        self.scale = scale
+
+        self.cnn = nn.Sequential(
+            nn.Conv2d(3,int(32*scale),kernel_size=3,stride=2),
+            VariationalDropout(int(32*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=False),
+            nn.Softplus(),
+            nn.Conv2d(int(32*scale),int(64*scale),kernel_size=3,stride=2),
+            VariationalDropout(int(64*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=False),
+            nn.Softplus(),
+        )
+        self.fc = nn.Sequential(
+            nn.Linear(int(64*scale)*7*7,int(128*scale)),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=True),
+            nn.Linear(int(128*scale),int(128*scale)),
+            VariationalDropout(int(128*scale),p=0.5,deterministic_test=(self.training!=True),deterministic_limit=False,deterministic_sparse=True,fc=True),
             nn.Linear(int(128*scale),10),
             # nn.Softmax(),
         )

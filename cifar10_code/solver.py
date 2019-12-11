@@ -33,14 +33,13 @@ class CNN(object):
         self.seed = seed
 
     def train(self,epochs,env,lr,save_pth,net_pth=' '):
-        # vis = visdom.Visdom(env=env)
-        # assert vis.check_connection()
-        # train_loss_win = vis.line(np.arange(10))
-        # test_loss_win = vis.line(np.arange(10))
-        # train_acc_win = vis.line(np.arange(10))
-        # test_acc_win = vis.line(np.arange(10))
-        # lr_win = vis.line(np.arange(10))
-        # alpha_win = vis.line(X=np.column_stack((np.array(0),np.array(0))),Y=np.column_stack((np.array(0),np.array(0))))
+        vis = visdom.Visdom(env=env)
+        assert vis.check_connection()
+        train_loss_win = vis.line(np.arange(10))
+        test_loss_win = vis.line(np.arange(10))
+        train_acc_win = vis.line(np.arange(10))
+        test_acc_win = vis.line(np.arange(10))
+        alpha_win = vis.line(X=np.column_stack((np.array(0),np.array(0))),Y=np.column_stack((np.array(0),np.array(0))))
         iter_count = 0
         model = self.load_model(net_pth)
         
@@ -69,7 +68,6 @@ class CNN(object):
         start_t = time.time()
         best_train_epoch_correct = 0.
         best_test_epoch_correct = 0.
-        alpha_list = [] 
         for epoch in range(epochs):
             for phase in ['train','val']:
                 epoch_start_t = time.time()
@@ -92,40 +90,47 @@ class CNN(object):
                         assert label.size(0) == y.size(0)
                         loss = criterion(y,label)
                         kl = 0
-                        if self.dropout_type == 'NETVariationalDropoutA' or 'NETVariationalDropoutB':
+                        if self.dropout_type in ['NETVariationalDropoutA','NETVariationalDropoutB']:
                             for name, module in model.named_modules():
-                                if isinstance(module,VariationalDropoutfc) or isinstance(module,VariationalDropoutcnn):
+                                if isinstance(module,(VariationalDropoutfc,VariationalDropoutcnn)):
                                     kl += module.kl()
-                        elif self.dropout_type == 'EffectNETVariationalDropoutA' or 'EffectNETVariationalDropoutB':
+                                    # print(module.kl())
+                            if phase == 'train' and (i+1)%50==0:
+                                m = []
+                                for j in model.named_parameters():
+                                    if j[0].split('.')[-1] == 'log_alpha':
+                                        t = torch.mean(j[1])
+                                        m.append(t)
+                        elif self.dropout_type in ['EffectNETVariationalDropoutA','EffectNETVariationalDropoutB']:
                             for name, module in model.named_modules():
-                                if isinstance(module,VariationalDropoutfce) or isinstance(module,VariationalDropoutcnne):
+                                if isinstance(module,(VariationalDropoutfce,VariationalDropoutcnne)):
                                     kl += module.kl()
-                            # if phase == 'train':
-                            #     m = []
-                            #     for i in model.named_parameters():
-                            #         if i[0].split('.')[-1] == 'alpha':
-                            #             t = torch.mean(i[1])
-                            #             m.append(t)
-                            #     alpha_list.append(m)
-                        elif self.dropout_type == 'NETVariationalDropoutSparse' or 'CompressNETVariationalDropoutSparse':
+                            if phase == 'train' and (i+1)%50==0:
+                                m = []
+                                for j in model.named_parameters():
+                                    if j[0].split('.')[-1] == 'log_alpha':
+                                        t = torch.mean(j[1])
+                                        m.append(t)
+                        elif self.dropout_type in ['NETVariationalDropoutSparse','CompressNETVariationalDropoutSparse']:
+                            if phase == 'train' and (i+1)%50==0:
+                                m = []
                             for name, module in model.named_modules():
-                                if isinstance(module,VariationalDropoutSparsefc) or isinstance(module,VariationalDropoutSparsecnn):
+                                if isinstance(module,(VariationalDropoutSparsefc,VariationalDropoutSparsecnn)):
                                     kl += module.kl()
-                            # if phase == 'train':
-                            #     m = []
-                            #     temp = []
-                            #     for i in model.named_parameters():
-                            #         if i[0].split('.')[-1] == 'log_sigma2':
-                            #             a = i[1] - torch.log(theta**2 + 1e-8)
-                            #             t = torch.mean(a.exp())
-                            #             m.append(t)
-                            #     alpha_list.append(m)
-                        elif self.dropout_type == 'NETVariationalDropoutHierarchical' or 'CompressNETVariationalDropoutHierarchical':
+                                    if phase == 'train' and (i+1)%50==0:
+                                        # print(torch.mean(module.get_log_alpha()))
+                                        m.append(torch.mean(module.get_log_alpha()))
+                        elif self.dropout_type in ['NETVariationalDropoutHierarchical','CompressNETVariationalDropoutHierarchical']:
+                            if phase == 'train' and (i+1)%50==0:
+                                m = []
                             for name, module in model.named_modules():
-                                if isinstance(module,VariationalDropoutHierarchicalfc) or isinstance(module,VariationalDropoutHierarchicalcnn):
+                                if isinstance(module,(VariationalDropoutHierarchicalfc,VariationalDropoutHierarchicalcnn)):
                                     kl += module.kl()
+                                    if phase == 'train' and (i+1)%50==0:
+                                        # print(torch.mean(module.get_log_alpha()))
+                                        m.append(torch.mean(module.get_log_alpha()))
                         else:
-                            assert self.dropout_type == 'NETNoDropout' or 'NETBernoulliDropout' or 'NETGaussianDropoutWang' or 'NETGaussianDropoutSrivastava','dropout type error'
+                            assert self.dropout_type in ['NETNoDropout','NETBernoulliDropout','NETGaussianDropoutWang','NETGaussianDropoutSrivastava'],'dropout type error'
                         loss = loss + kl/50000
 
                         if phase == 'train':
@@ -135,6 +140,7 @@ class CNN(object):
                     running_loss += loss.item()*batch_size
                     running_correct += (preds==label).sum()
                 
+                print('kl:',kl)
                 epoch_loss = running_loss/datasize[phase]
                 epoch_correct = running_correct.double()/datasize[phase]
                 epoch_t = time.time() - epoch_start_t
@@ -144,37 +150,43 @@ class CNN(object):
                     if phase == 'train':
                         if epoch_correct >= best_train_epoch_correct:
                             best_train_epoch_correct = epoch_correct
-                        # vis.line(Y=np.array([epoch_loss]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=train_loss_win,
-                        #         opts=dict(legend=['train_loss']))
-                        # vis.line(Y=np.array([epoch_correct.item()]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=train_acc_win,
-                        #         opts=dict(legend=['train_acc']))
+                        vis.line(Y=np.array([epoch_loss]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=train_loss_win,
+                                opts=dict(legend=['train_loss']))
+                        vis.line(Y=np.array([epoch_correct.item()]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=train_acc_win,
+                                opts=dict(legend=['train_acc']))
                         print('train_best_epoch_correct:',best_train_epoch_correct.item())
+                        if self.dropout_type in ['NETVariationalDropoutA','NETVariationalDropoutB','EffectNETVariationalDropoutA','EffectNETVariationalDropoutB',\
+                            'NETVariationalDropoutHierarchical','CompressNETVariationalDropoutHierarchical','NETVariationalDropoutSparse','CompressNETVariationalDropoutSparse']:
+                            vis.line(Y=np.column_stack((np.array([m[0].item()]), np.array([m[-1].item()]))),
+                                    X=np.column_stack((np.array([iter_count]), np.array([iter_count]))),
+                                    win=alpha_win, update='append',
+                                    opts=dict(legned=['log_alpha1', 'log_alpha2']))
                     else:
                         if epoch_correct >= best_test_epoch_correct:
                             best_test_epoch_correct = epoch_correct
-                        # vis.line(Y=np.array([epoch_loss]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=test_loss_win,
-                        #         opts=dict(legend=['test_loss']))
-                        # vis.line(Y=np.array([epoch_correct.item()]),
-                        #         X=np.array([iter_count]),
-                        #         update='append',
-                        #         win=test_acc_win,
-                        #         opts=dict(legend=['test_acc']))
+                        vis.line(Y=np.array([epoch_loss]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=test_loss_win,
+                                opts=dict(legend=['test_loss']))
+                        vis.line(Y=np.array([epoch_correct.item()]),
+                                X=np.array([iter_count]),
+                                update='append',
+                                win=test_acc_win,
+                                opts=dict(legend=['test_acc']))
                         print('val_best_epoch_correct:',best_test_epoch_correct.item())
                         iter_count += 1
 
             # self.save_model(model,epoch,save_pth)
-        with open('%s/%.1f/%d_end.txt'%(self.dropout_type,self.scale,self.seed),'w') as f:
+        with open('%s/%.1f/test_%d_end.txt'%(self.dropout_type,self.scale,self.seed),'w') as f:
             f.writelines([str(epoch_correct.item())])
-        with open('%s/%.1f/%d_best.txt'%(self.dropout_type,self.scale,self.seed),'w') as f:
+        with open('%s/%.1f/test_%d_best.txt'%(self.dropout_type,self.scale,self.seed),'w') as f:
             f.writelines([str(best_test_epoch_correct.item())])
         
         self.save_model(model,epoch,save_pth)

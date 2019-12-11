@@ -54,6 +54,7 @@ class NETBernoulliDropout(nn.Module):
             nn.Dropout(p=0.5),
         )
         self.fc = nn.Sequential(
+            # nn.Dropout(p=0.5),
             nn.Linear(int(64*scale)*7*7,int(128*scale)),
             nn.Dropout(p=0.5),
             nn.Linear(int(128*scale),int(128*scale)),
@@ -102,11 +103,11 @@ class NETGaussianDropoutSrivastava(nn.Module):
             nn.Softplus(),
             GaussianDropoutScnn(int(32*scale),int(64*scale),kernel_size=3,stride=2,p=0.5,deterministic_test=(self.training!=True)),
             nn.Softplus(),
-            GaussianDropout(int(64*scale),p=0.5),
+            # GaussianDropout(int(64*scale),p=0.5),
         )
         self.fc = nn.Sequential(
-            nn.Linear(int(64*scale)*7*7,int(128*scale)),
-            # GaussianDropoutSfc(int(64*scale)*7*7,int(128*scale),p=0.5,deterministic_test=(self.training!=True)),
+            # nn.Linear(int(64*scale)*7*7,int(128*scale)),
+            GaussianDropoutSfc(int(64*scale)*7*7,int(128*scale),p=0.5,deterministic_test=(self.training!=True)),
             GaussianDropoutSfc(int(128*scale),int(128*scale),p=0.5,deterministic_test=(self.training!=True)),
             GaussianDropoutSfc(int(128*scale),10,p=0.5,deterministic_test=(self.training!=True)),
             # nn.Linear(int(128*scale),10),
@@ -134,7 +135,8 @@ class NETVariationalDropoutA(nn.Module):
         self.fc = nn.Sequential(
             VariationalDropoutfc(int(64*scale)*7*7,int(128*scale),p=0.5,dropout_type='A',deterministic_test=(self.training!=True),deterministic_limit=True),
             VariationalDropoutfc(int(128*scale),int(128*scale),p=0.5,dropout_type='A',deterministic_test=(self.training!=True),deterministic_limit=True),
-            nn.Linear(int(128*scale),10),
+            VariationalDropoutfc(int(128*scale),10,p=0.5,dropout_type='A',deterministic_test=(self.training!=True),deterministic_limit=True),
+            # nn.Linear(int(128*scale),10),
             # nn.Softmax(),
         )
 
@@ -158,7 +160,8 @@ class EffectNETVariationalDropoutA(nn.Module):
         self.fc = nn.Sequential(
             VariationalDropoutfce(int(64*scale)*7*7,int(128*scale),p=0.5,dropout_type='A',deterministic_test=(self.training!=True),deterministic_limit=False),
             VariationalDropoutfce(int(128*scale),int(128*scale),p=0.5,dropout_type='A',deterministic_test=(self.training!=True),deterministic_limit=False),
-            nn.Linear(int(128*scale),10),
+            VariationalDropoutfce(int(128*scale),10,p=0.5,dropout_type='A',deterministic_test=(self.training!=True),deterministic_limit=False),
+            # nn.Linear(int(128*scale),10),
             # nn.Softmax(),
         )
 
@@ -279,6 +282,7 @@ class NETVariationalDropoutHierarchical(nn.Module):
         self.fc = nn.Sequential(
             VariationalDropoutHierarchicalfc(int(64*scale)*7*7,int(128*scale),deterministic_test=(self.training!=True),deterministic_compress=False),
             VariationalDropoutHierarchicalfc(int(128*scale),int(128*scale),deterministic_test=(self.training!=True),deterministic_compress=False),
+            # VariationalDropoutHierarchicalfc(int(128*scale),10,deterministic_test=(self.training!=True),deterministic_compress=False),
             nn.Linear(int(128*scale),10),
             # nn.Softmax(),
         )

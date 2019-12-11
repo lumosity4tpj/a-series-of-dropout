@@ -19,7 +19,7 @@ def args():
                         default = 100,
                         help = 'number of epochs(default:1000)')
     parser.add_argument('--batch_size', type = int, \
-                        default = 100, 
+                        default = 1000, 
                         help = 'the batch size(default:1000)')
     parser.add_argument('--lr', type = float, \
                         default = 0.001,

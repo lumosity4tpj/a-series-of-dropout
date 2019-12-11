@@ -21,30 +21,26 @@ class VariationalDropoutSparsefc(_Linear):
         self.deterministic_compress = deterministic_compress
         self.threshold = threshold
         self.eps = eps
-        log_sigma2 = torch.Tensor(in_features,out_features).fill_(-10.)
-        self.log_sigma2 = nn.Parameter(log_sigma2)
+        log_alpha = torch.Tensor(in_features,out_features).fill_(np.log(1.))
+        self.log_alpha = nn.Parameter(log_alpha)
         self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
-
-    @staticmethod
-    def compute_log_alpha(log_sigma2, theta, eps=1e-8, value_limit=8.):
-        log_alpha = log_sigma2 - torch.log(theta**2 + eps)
-        if value_limit is not None:
-            # If a limit is specified, clip the alpha values
-            return torch.clamp(log_alpha.data, -value_limit, value_limit)
 
     @staticmethod
     def compute_log_sigma2(log_alpha, theta, eps=1e-8):
         return log_alpha + torch.log(theta**2 + eps)
 
+    def get_log_alpha(self):
+        return self.log_alpha
+
     def kl(self):
         k1, k2, k3 = 0.63576, 1.8732, 1.48695
-        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.t())
+        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
         return -torch.sum(k1 * self.sigmoid(k2 + k3 * log_alpha) - 0.5 * self.softplus(-log_alpha) - k1)
 
     @weak_script_method
     def forward(self,input):
-        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.t())
+        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
         if self.deterministic_test:
             assert self.training == False,"Flag deterministic is True. This should not be used in training."
             if self.deterministic_compress:
@@ -79,28 +75,26 @@ class VariationalDropoutSparsecnn(_ConvNd):
         self.deterministic_compress = deterministic_compress
         self.threshold = threshold
         self.eps = eps        
-        log_sigma2 = torch.Tensor(in_channels,out_channels,*kernel_size).fill_(-10.)
-        self.log_sigma2 = nn.Parameter(log_sigma2)
-
-    @staticmethod
-    def compute_log_alpha(log_sigma2, theta, eps=1e-8, value_limit=8.):
-        log_alpha = log_sigma2 - torch.log(theta**2 + eps)
-        if value_limit is not None:
-            # If a limit is specified, clip the alpha values
-            return torch.clamp(log_alpha.data, -value_limit, value_limit)
+        log_alpha = torch.Tensor(in_channels,out_channels,*kernel_size).fill_(np.log(1.))
+        self.log_alpha = nn.Parameter(log_alpha)
+        self.sigmoid = nn.Sigmoid()
+        self.softplus = nn.Softplus()
 
     @staticmethod
     def compute_log_sigma2(log_alpha, theta, eps=1e-8):
         return log_alpha + torch.log(theta**2 + eps)
 
+    def get_log_alpha(self):
+        return self.log_alpha
+
     def kl(self):
         k1, k2, k3 = 0.63576, 1.8732, 1.48695
-        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.permute(1,0,2,3).contiguous())
+        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
         return -torch.sum(k1 * self.sigmoid(k2 + k3 * log_alpha) - 0.5 * self.softplus(-log_alpha) - k1)
 
     @weak_script_method
     def forward(self,input):
-        log_alpha = self.compute_log_alpha(self.log_sigma2,self.weight.permute(1,0,2,3).contiguous())
+        log_alpha = torch.clamp(self.log_alpha, -8., 8.)
         if self.deterministic_test:
             assert self.training == False,"Flag deterministic is True. This should not be used in training."
             if self.deterministic_compress:
