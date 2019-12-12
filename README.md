@@ -12,17 +12,17 @@
 
 第一个为Hierarchical 对log_sigma2优化(type B，独立)，第二个为Sparse对log_sigma2优化(type B，独立)，取第一层conv和最后一层fc的log_alpha
 
-![59c6878a-bcd9-4965-9243-699dc2527341](D:\download\tp\59c6878a-bcd9-4965-9243-699dc2527341.svg)
+![59c6878a-bcd9-4965-9243-699dc2527341](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/59c6878a-bcd9-4965-9243-699dc2527341.svg)
 
-![d5105f69-f144-4c3c-b130-0b7ae8e7683c](D:\download\tp\d5105f69-f144-4c3c-b130-0b7ae8e7683c.svg)
+![d5105f69-f144-4c3c-b130-0b7ae8e7683c](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/d5105f69-f144-4c3c-b130-0b7ae8e7683c.svg)
 
 第一个为Hierarchical 对log_alpha优化(type B，独立)，第二个为Sparse对log_alpha优化(type B，独立)，第三个为Hierarchical 对log_alpha优化(type B，局部重采样)，取第一层conv和最后一层fc的log_alpha
 
-![8740d293-7c4b-4b75-89d6-15a47dfea578](D:\download\tp\8740d293-7c4b-4b75-89d6-15a47dfea578.svg)![f054c30a-366a-460c-bd19-0d40ff31ca41](D:\download\tp\f054c30a-366a-460c-bd19-0d40ff31ca41.svg)
+![8740d293-7c4b-4b75-89d6-15a47dfea578](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/8740d293-7c4b-4b75-89d6-15a47dfea578.svg)
 
+![f054c30a-366a-460c-bd19-0d40ff31ca41](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/f054c30a-366a-460c-bd19-0d40ff31ca41.svg)
 
-
-![d8d63303-2f27-4354-b6b3-305872b72b01](D:\download\tp\d8d63303-2f27-4354-b6b3-305872b72b01.svg)
+![d8d63303-2f27-4354-b6b3-305872b72b01](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/d8d63303-2f27-4354-b6b3-305872b72b01.svg)
 
 实验结果：
 
