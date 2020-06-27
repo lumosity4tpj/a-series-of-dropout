@@ -1,30 +1,10 @@
-# a-series-of-dropout
-
 根据实验发现：
 
-1. 对VDH和VDS如果使用log_sigma2作为参数优化，Hierarchical跟Sparse会很快的稀疏化(Hierarchical更快)，导致Hierarchical不能正确分类(10%)，Sparse则收敛很慢(48%)
-2. 故VDH和VDS也改为使用log_alpha为参数优化，在cifar10上，稀疏能力都一般，但Hierarchical的稀疏能力没有Sparse好
+1. 对VDH和VDS如果使用log_sigma2作为参数优化，Hierarchical跟Sparse会很快的稀疏化(Hierarchical更快)，导致Hierarchical不能正确分类(10%)，Sparse则收敛很慢(48%)，但后面做压缩实验在mnist的时候，VDS使用的是log_sigma2，效果还不错，但可能的原因是给了一个学习率衰减?
+2. 故VDH和VDS也改为使用log_alpha为参数优化，~~在cifar10上，稀疏能力都一般，但Hierarchical的稀疏能力没有Sparse好~~
 3. 对type A 协同：在最后一个conv后和在第一个fc前差不多
-4. 对type B 独立：最初new的code效果更好，区别在于一个是对B（new，类似于做了局部重采样），一个是对W(维度更高)，~~所以原因在于此~~~~？~~(更改之后结果就相近了)，但在Hierarchical时对B会直接导致log_alpha下降了，没有稀疏性了呀！或许是由于使用的网络太小了？
-5. VD中效果type A比type B差，原文又没直接说明cifar10上的结果选用(但论文在mnist上type A更好)，但显然结果相反了？(之前有人复现也有此问题)
-
-
-
-第一个为Hierarchical 对log_sigma2优化(type B，独立)，第二个为Sparse对log_sigma2优化(type B，独立)，取第一层conv和最后一层fc的log_alpha
-
-![59c6878a-bcd9-4965-9243-699dc2527341](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/59c6878a-bcd9-4965-9243-699dc2527341.svg)
-
-![d5105f69-f144-4c3c-b130-0b7ae8e7683c](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/d5105f69-f144-4c3c-b130-0b7ae8e7683c.svg)
-
-第一个为Hierarchical 对log_alpha优化(type B，独立)，第二个为Sparse对log_alpha优化(type B，独立)，第三个为Hierarchical 对log_alpha优化(type B，局部重采样)，取第一层conv和最后一层fc的log_alpha
-
-![8740d293-7c4b-4b75-89d6-15a47dfea578](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/8740d293-7c4b-4b75-89d6-15a47dfea578.svg)
-
-![f054c30a-366a-460c-bd19-0d40ff31ca41](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/f054c30a-366a-460c-bd19-0d40ff31ca41.svg)
-
-![d8d63303-2f27-4354-b6b3-305872b72b01](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/d8d63303-2f27-4354-b6b3-305872b72b01.svg)
-
-实验结果：
+4. 对type B 独立：最初new的code效果更好，区别在于一个是对B（new，类似于做了局部重采样），一个是对W(维度更高)，~~所以原因在于此~~~~？~~(更改代码之后结果就相近了)，但在Hierarchical时对B会直接导致log_alpha下降
+5. VD中效果type A比type B差，原文又没直接说明cifar10上的结果选用(但论文在mnist上type A更好)，但显然结果相反了？(之前有人复现好像也有此问题)
 
 A: (第一行)在fc前 (第二行)在conv后
 
@@ -71,6 +51,16 @@ VariationalA/B：[Variational Dropout and the Local Reparameterization Trick](ht
 VariationalHierarchical：[Variational Bayesian Dropout with a Hierarchical Prior](https://arxiv.org/abs/1811.07533)
 
 VariationalSparse： [Variational Dropout Sparsiﬁes Deep NeuralNetworks](https://www.semanticscholar.org/paper/34cc3ceae5c3f7c8acbb89f2bff63f9d452b00d5)
+
+
+
+还未完全按照论文参数设置
+
+LeNet-300-100
+
+|          | acc  | sparsity per layer | compression ratio |
+| -------- | ---- | ------------------ | ----------------- |
+| SparseVD | 98.6 | 97.0-95.6-61.2     | 32                |
 
 
 

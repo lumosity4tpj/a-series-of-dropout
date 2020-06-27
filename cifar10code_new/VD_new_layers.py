@@ -43,7 +43,6 @@ class VariationalDropout(nn.Module):
             if self.deterministic_sparse == True:
                 k1, k2, k3 = 0.63576, 1.8732, 1.48695
                 return -torch.sum(k1 * self.sigmoid(k2 + k3 * self.log_alpha) - 0.5 * self.softplus(-self.log_alpha) - k1)
-
             else:
                 return -torch.sum(-0.5*self.softplus(-self.log_alpha))
 
