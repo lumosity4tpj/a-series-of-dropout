@@ -110,9 +110,9 @@ Lenet300-100：
 
 
 
-![937_fc1_hot](D:\projects\github\a series of dropout\pics\937_fc1_hot.png)
+![937_fc1_hot](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/937_fc1_hot.png)
 
-![937_fc1](D:\projects\github\a series of dropout\pics\937_fc1.png)
+![937_fc1](https://github.com/lumosity4tpj/a-series-of-dropout/blob/master/pics/937_fc1.png)
 
 
 
